@@ -1,0 +1,118 @@
+---
+title: "Machine Learning Project"
+author: "KHL"
+date: "June 20, 2015"
+output: html_document
+---
+## 1.Introduction
+
+Human Activity Recognition - HAR - has emerged as a key research area in the last years and is gaining increasing attention by the pervasive computing research community.Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+The goal of this project is to predict the manner in which they did the exercise. 
+
+## 2.Loading and Processing the Data
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+The data was downloaded from the links provided by coursera.
+
+Data processing was done as given below.
+
+1.Data with some blank values, Div/0 values and NA values were converted to 'NA'.
+
+2.Data with more than 70% of NA values were removed since they dont contribute much to the prediction.
+
+3.First seven columns of the data were removed.
+
+4.All columns in the data were changed to numeric
+
+```{r,message=FALSE}
+setInternet2(TRUE)
+
+url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url1<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+#Loading and Converting blank,div/0 and NA to NA
+Data <- read.csv(url,na.strings=c("NA","#DIV/0!", ""))
+Check<- read.csv(url1,na.strings=c("NA","#DIV/0!", ""))
+
+#Removing data with 70% NA values
+BestData    <- which((colSums(!is.na(Data)) >= 0.7*nrow(Data)))
+BestCheck    <- which((colSums(!is.na(Check)) >= 0.7*nrow(Check)))
+Data <- Data[,BestData]
+Check    <- Check[,BestCheck]
+
+#changing columns 8 to the end to be numeric
+for(i in c(8:ncol(Data)-1)) 
+  {Data[,i] = as.numeric(as.character(Data[,i]))}
+
+for(i in c(8:ncol(Check)-1))
+{Check[,i] =as.numeric(as.character(Check[,i]))}
+
+
+#Removing First five columns of the data 
+Data <- Data[,-c(1,7)]
+Check <- Check[,-c(1,7)]
+
+```
+
+Now,the primary dataset has only the predictor variables and the outcome variable, classe.
+
+## 3.Modelling
+
+Data was split into 60% training data for modelling and 40% testing data for validation.
+
+```{r,message=FALSE,warning=FALSE}
+library(caret)
+
+Data1  <- createDataPartition(Data$classe, p = 0.6, list = FALSE)
+Training    <- Data[Data1, ]
+Testing     <- Data[-Data1, ]
+```
+
+Parallel Random Forest algorithm (6 random forests with 150 trees each)was used to fit the model. 
+
+```{r,warning=FALSE}
+library(randomForest)
+library(foreach)
+library(doParallel)
+
+registerDoParallel()
+x <- Training[-ncol(Training)]
+y <- Training$classe
+
+
+rf <- foreach(ntree=rep(150, 6), .combine=randomForest::combine, .packages='randomForest') %dopar% {
+randomForest(x, y, ntree=ntree) 
+}
+```
+
+## 4.Crossvalidation
+
+Error reports were generated for both training data and testing set and results were presented.
+ 
+ 
+```{r}
+TrainingPrediction <- predict(rf, newdata=Training)
+CM <- confusionMatrix(TrainingPrediction,Training$classe)
+CM
+
+TestingPrediction <- predict(rf, newdata=Testing)
+CMTest <- confusionMatrix(TestingPrediction,Testing$classe)
+CMTest
+```
+
+Checking at the accuracy of the model.
+
+```{r}
+CMTest$overall[1]
+```
+
+Since the Accuracy is more than 99.5%. The model is perfect.
+
+
+
+
+
+
+
+
